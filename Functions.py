@@ -21,6 +21,12 @@ def loadAPI(URL):
 class DataF:
     def __init__(self,path,func):
         self.df=func(path)
+    
+    def get_columns(self):
+        return list(self.df.columns)
+    
+    def __getattr__(self, name):
+        return getattr(self.df, name)
 
     def replaceChars(self,col,removedChar,newChar=""):
         self.df[col]=self.df[col].str.replace(removedChar,newChar)
