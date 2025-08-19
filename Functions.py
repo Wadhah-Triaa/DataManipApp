@@ -20,7 +20,10 @@ def loadAPI(URL):
 
 class DataF:
     def __init__(self,path,func):
-        self.df=func(path)
+            self.df=func(path)
+     
+    def get_df(self):
+        return self.df
     
     def get_columns(self):
         return list(self.df.columns)
@@ -29,58 +32,64 @@ class DataF:
         return getattr(self.df, name)
 
     def replaceChars(self,col,removedChar,newChar=""):
-        self.df[col]=self.df[col].str.replace(removedChar,newChar)
-        print(self.df)
+        
+        self.df.iloc[:,col]=self.df.iloc[:,col].astype(str).str.replace(removedChar,newChar,regex=False)
+        return (self.df)
 
-    def renameColumn(self,colName,newColName):
+    def renameColumn(self,ColNumber,newColName):
+        colName=self.df.columns[ColNumber]
         self.df = self.df.rename(columns={colName:newColName})
-        print(self.df)
+        return self.df
 
-    def filterNumerical(self,colName,value ,filterType):
+    def filterNumerical(self,ColNumber,value ,filterType):
+        colName=self.df.columns[ColNumber]
         match filterType:
             case "<":
-                print(self.df[self.df[colName]< value])
+                self.df=self.df[self.df[colName]< value]
         
             case ">":
-                print(self.df[self.df[colName]> value])
+                self.df=self.df[self.df[colName]> value]
             
             case "<=":
-                print(self.df[self.df[colName]<= value])
+                self.df=self.df[self.df[colName]<= value]
         
             case ">=":
-                print(self.df[self.df[colName]>= value])
+                self.df=self.df[self.df[colName]>= value]
 
             case "==":
-                print(self.df[self.df[colName]== value])
+                self.df=self.df[self.df[colName]== value]
         
             case "!=":
-                print(self.df[self.df[colName]!= value])   
+                self.df=self.df[self.df[colName]!= value]
 
-    def filterString(self,colName,value ,exactMatch=True):
+    def filterString(self,ColNumber,value ,exactMatch=False):
+        colName=self.df.columns[ColNumber]
         if (exactMatch):
-            print( self.df[ self.df[colName]==value])
+            self.df=self.df[ self.df[colName]==value]
         else:
-          print( self.df[self.df[colName].str.contains(value, case=False, na=False)])
+          self.df=self.df[self.df[colName].str.contains(value, case=False, na=False)]
 
-    def filterByDate(self,colName,value,filterType):
+    def filterByDate(self,ColNumber,value,filterType):
+        colName=self.df.columns[ColNumber]
         try:
             date=pd.to_datetime(value, format='%Y-%m-%d', errors='raise')
             self.df[colName] = pd.to_datetime(self.df[colName], errors='coerce')
             match filterType:
                 case ">":
-                    print (self.df[self.df[colName]>date])
+                    self.df=self.df[self.df[colName]>date]
 
                 case "<":
-                    print (self.df[self.df[colName]<date])
+                    self.df=self.df[self.df[colName]<date]
 
                 case ">=":
-                    print (self.df[self.df[colName]>=date])
+                    self.df=self.df[self.df[colName]>=date]
 
                 case "<=":
-                    print (self.df[self.df[colName]<=date])
+                    self.df=self.df[self.df[colName]<=date]
 
                 case "==":
-                    print (self.df[self.df[colName]==date])
+                    self.df=self.df[self.df[colName]==date]
+                
 
         except ValueError:
             print("Invalid date format. Please use YYYY-MM-DD.")
