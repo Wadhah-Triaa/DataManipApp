@@ -2,6 +2,10 @@ import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, simpledialog
 from tkcalendar import DateEntry
 import Functions as fct
+from pathlib import Path
+import asyncio
+
+
 
 class CSVViewer:
     def __init__(self, root):
@@ -121,7 +125,6 @@ class CSVViewer:
                     self.dataTable=fct.DataF(file_path,fct.loadCSV)
                 elif file_path.lower().endswith(".xlsx"):
                     self.dataTable=fct.DataF(file_path,fct.loadExcel)
-
                 filename = file_path.split('/')[-1]  
                 self.file_label.config(text=f"File: {filename}")
                 self.status_var.set(f"File: {filename} Loaded Successfully")
@@ -129,7 +132,6 @@ class CSVViewer:
             except Exception as e:
                 messagebox.showerror("Error", f"Error loading CSV file:\n{str(e)}")
                 self.status_var.set("Error loading file")
-        
         self.display_data()
 
     def upload_api_data(self):
@@ -138,7 +140,6 @@ class CSVViewer:
             self.dataTable=fct.DataF(self.name_var.get(),fct.loadAPI)
             self.file_label.config(text=f"API Loaded")
             self.status_var.set(f"API Endpoint: {self.name_var.get()} Loaded Successfully")
-
             self.display_data()
 
         except Exception as e:
@@ -147,7 +148,7 @@ class CSVViewer:
 
     def save_file(self):
         file_path = filedialog.asksaveasfilename(
-        defaultextension=".txt",  # default extension if user doesn't type one
+        defaultextension=".csv",  # default extension if user doesn't type one
         filetypes=[
             ("Text Files", "*.txt"),
             ("CSV Files", "*.csv"),
@@ -157,10 +158,15 @@ class CSVViewer:
         title="Save your file"
     )
         if file_path:
-            print("Saving to:", file_path)
-            with open(file_path, "w") as f:
-                f.write(self.dataTable) #still much work here
-
+            file_ext = Path(file_path).suffix 
+            match file_ext:
+                case ".csv" :
+                    fct.saveCSV(file_path,self.dataTable)
+                case ".xlsx" :
+                    fct.saveExcel(file_path,self.dataTable)
+                case ".txt" :
+                    fct.saveTxt(file_path,self.dataTable)
+                    
     def clear_table(self):
         self.tree.delete(*self.tree.get_children())
         self.status_var.set("Table cleared")
@@ -175,6 +181,12 @@ class CSVViewer:
             "Filter by a number":self.dataTable.filterNumerical,
             "Filter by string":self.dataTable.filterString,
             "Filter by Date":self.dataTable.filterByDate,
+            "Translate column":self.dataTable.translateAll,
+            "Drop a column":self.dataTable.dropColumn,
+            "Sort by order":self.dataTable.sortByOrder,
+            "Show Top/Bottom rows":self.dataTable.showRows,
+            "Remove Duplicates (Keep Last)":self.dataTable.removeDuplicateByColumn,
+            "Remove duplicated rows":self.dataTable.removeAllDuplicates,
             "Go back to orignal data":self.dataTable.get_df
         }
         for func in self.functions.keys():
@@ -206,15 +218,26 @@ class CSVViewer:
         self.status_var.set(self.status_var.get()+ f" With Row Count: {len(self.tree.get_children())} ")
 
     def execute_function(self):
+        functions_requiring_column = {"Replace a Character","Rename a column","Filter by a number","Filter by string","Filter by Date","Translate column","Drop a column","Sort by order","Remove Duplicates (Keep Last)"} 
         try:
-
             self.function_selection = self.functions_listbox.curselection()[0]
-            self.column_selection= self.cols_listbox.curselection()[0]
-            self.functions_listbox.selection_set(self.function_selection)
-            self.cols_listbox.selection_set(self.column_selection)
+            selected_function_name = self.functions_listbox.get(self.function_selection)
 
+            # Always set function selection
+            self.functions_listbox.selection_set(self.function_selection)
+
+            # Check if selected function needs a column
+            if selected_function_name in functions_requiring_column:
+                self.column_selection = self.cols_listbox.curselection()[0]
+                self.cols_listbox.selection_set(self.column_selection)
+            else:
+                self.column_selection = None  # or skip setting it
+
+        except IndexError:
+            messagebox.showwarning("No Selection", "Please select a function to execute.")
+            return
         except Exception as e:
-            messagebox.showwarning("No Selection", "Please select a function to execute and a column")
+            messagebox.showwarning("Error", str(e))
             return
         #if not function_selection:
            # messagebox.showwarning("No Selection", "Please select a function to execute")
@@ -230,19 +253,15 @@ class CSVViewer:
                 self.old_char=tk.StringVar()
                 self.new_char=tk.StringVar()
                 #ttk.Label(self.popup, text=column_selection).grid(row=0, column=0, padx=5, pady=5).pack()
-                
                 ttk.Label(self.popup, text="Enter Old Character: ").grid(row=1, column=0, sticky=tk.W, padx=5, pady=5)
                 ttk.Entry(self.popup, textvariable=self.old_char ,width=30).grid(row=1, column=1, sticky=tk.W,padx=(0, 5) )
                 ttk.Label(self.popup, text="Enter New Character: ").grid(row=2, column=0, sticky=tk.W, padx=5, pady=5)
                 ttk.Entry(self.popup, textvariable=self.new_char,width=30).grid(row=2, column=1, sticky=tk.W,padx=(0, 5) )
                 #self.functions["Replace a Character"](column_selection,old_char.get(),new_char.get())
-                
-
 
             case 1:
                 #self.functions["Rename a column"](column_selection,"e")
                 self.new_col_name=tk.StringVar()
-
                 ttk.Label(self.popup, text=self.column_selection).grid(row=0, column=0, sticky=tk.W, padx=5, pady=5)
                 ttk.Label(self.popup, text="Enter New Column Name: ").grid(row=1, column=0, sticky=tk.W, padx=5, pady=5)
                 ttk.Entry(self.popup, textvariable=self.new_col_name ,width=30).grid(row=1, column=1, sticky=tk.W,padx=(0, 5) )
@@ -262,41 +281,174 @@ class CSVViewer:
                 ttk.Label(self.popup, text="Enter String: ").grid(row=0, column=0, sticky=tk.W, padx=5, pady=5)
                 ttk.Entry(self.popup, textvariable=self.value ,width=30).grid(row=0, column=1, sticky=tk.W,padx=(0, 5) )
 
-
             case 4:
                 self.combo = ttk.Combobox(self.popup, values=(">","<","<=",">=","==","!="), state="readonly",width=27)
                 self.combo.grid(row=0,column=2,sticky=tk.W,padx=(0, 5))
                 self.combo.set("Select function")
                 self.date_entry = DateEntry(self.popup, date_pattern='yyyy-mm-dd')
                 self.date_entry.grid(row=0, column=1, padx=5, pady=5, sticky=tk.W)
-
         
             case 5:
+                self.languageCodes = {
+                "afrikaans": "af",
+                "albanian": "sq",
+                "amharic": "am",
+                "arabic": "ar",
+                "armenian": "hy",
+                "azerbaijani": "az",
+                "basque": "eu",
+                "belarusian": "be",
+                "bengali": "bn",
+                "bosnian": "bs",
+                "bulgarian": "bg",
+                "catalan": "ca",
+                "cebuano": "ceb",
+                "chichewa": "ny",
+                "chinese (simplified)": "zh-cn",
+                "chinese (traditional)": "zh-tw",
+                "corsican": "co",
+                "croatian": "hr",
+                "czech": "cs",
+                "danish": "da",
+                "dutch": "nl",
+                "english": "en",
+                "esperanto": "eo",
+                "estonian": "et",
+                "filipino": "tl",
+                "finnish": "fi",
+                "french": "fr",
+                "frisian": "fy",
+                "galician": "gl",
+                "georgian": "ka",
+                "german": "de",
+                "greek": "el",
+                "gujarati": "gu",
+                "haitian creole": "ht",
+                "hausa": "ha",
+                "hindi": "hi",
+                "hmong": "hmn",
+                "hungarian": "hu",
+                "icelandic": "is",
+                "igbo": "ig",
+                "indonesian": "id",
+                "irish": "ga",
+                "italian": "it",
+                "japanese": "ja",
+                "javanese": "jw",
+                "kannada": "kn",
+                "kazakh": "kk",
+                "khmer": "km",
+                "korean": "ko",
+                "kurdish (kurmanji)": "ku",
+                "kyrgyz": "ky",
+                "lao": "lo",
+                "latin": "la",
+                "latvian": "lv",
+                "lithuanian": "lt",
+                "luxembourgish": "lb",
+                "macedonian": "mk",
+                "malagasy": "mg",
+                "malay": "ms",
+                "malayalam": "ml",
+                "maltese": "mt",
+                "maori": "mi",
+                "marathi": "mr",
+                "mongolian": "mn",
+                "myanmar (burmese)": "my",
+                "nepali": "ne",
+                "norwegian": "no",
+                "odia": "or",
+                "pashto": "ps",
+                "persian": "fa",
+                "polish": "pl",
+                "portuguese": "pt",
+                "punjabi": "pa",
+                "romanian": "ro",
+                "russian": "ru",
+                "samoan": "sm",
+                "scots gaelic": "gd",
+                "serbian": "sr",
+                "sesotho": "st",
+                "shona": "sn",
+                "sindhi": "sd",
+                "sinhala": "si",
+                "slovak": "sk",
+                "slovenian": "sl",
+                "somali": "so",
+                "spanish": "es",
+                "sundanese": "su",
+                "swahili": "sw",
+                "swedish": "sv",
+                "tajik": "tg",
+                "tamil": "ta",
+                "telugu": "te",
+                "thai": "th",
+                "turkish": "tr",
+                "ukrainian": "uk",
+                "urdu": "ur",
+                "uyghur": "ug",
+                "uzbek": "uz",
+                "vietnamese": "vi",
+                "welsh": "cy",
+                "xhosa": "xh",
+                "yiddish": "yi",
+                "yoruba": "yo",
+                "zulu": "zu"}
+                
+                self.combo = ttk.Combobox(self.popup, values=list(self.languageCodes.keys()), state="readonly",width=27)
+                self.combo.grid(row=1,column=1,sticky=tk.W,padx=(0, 5))
+                self.combo.set("Select Language")
+                self.value=tk.StringVar()
+            case 6:
+                self.functions["Drop a column"](self.column_selection)
+            case 7:
+                self.combo = ttk.Combobox(self.popup, values=("Ascending", "Descending"), state="readonly",width=27)
+                self.combo.grid(row=1,column=1,sticky=tk.W,padx=(0, 5))
+                self.combo.set("Select order")
+                self.value=tk.StringVar()            
+            case 8:
+                self.combo = ttk.Combobox(self.popup, values=("Top Rows", "Bottom Rows"), state="readonly",width=27)
+                self.combo.grid(row=1,column=1,sticky=tk.W,padx=(0, 5))
+                self.combo.set("Select Top/Bottom Rows")
+                self.value=tk.StringVar() 
+                ttk.Label(self.popup, text="Enter Value: ").grid(row=0, column=0, sticky=tk.W, padx=5, pady=5)
+                ttk.Entry(self.popup, textvariable=self.value ,width=30).grid(row=0, column=1, sticky=tk.W,padx=(0, 5) )
+       
+            case 9:
+                self.functions["Remove Duplicates (Keep Last)"](self.column_selection)
+            case 10:
+                self.functions["Remove duplicated rows"]()
+            case 11:
                 self.functions["Go back to orignal data"]()
-
-
-        #print("fct",function_selection)
-        
    
     def validate (self):
         match self.function_selection:
             case 0:
                 self.functions["Replace a Character"](self.column_selection, self.old_char.get(), self.new_char.get())
-
             case 1:
                 self.functions["Rename a column"](self.column_selection,self.new_col_name.get())
-
             case 2:
                 self.functions["Filter by a number"](self.column_selection, int(self.value.get()), self.combo.get())
-                
             case 3:
                 self.functions["Filter by string"](self.column_selection,self.value.get())
-
             case 4:
                 self.functions["Filter by Date"](self.column_selection,self.date_entry.get(),self.combo.get())           
             case 5:
+                asyncio.run(self.functions["Translate column"](self.column_selection,self.languageCodes[self.combo.get()]))
+            case 6:
+                self.functions["Drop a column"](self.column_selection)
+            case 7:
+                self.functions["Sort by order"](self.column_selection,self.combo.get())
+            case 8:
+                self.functions["Show Top/Bottom rows"](self.combo.get(),int(self.value.get()))
+            case 9:
+                self.functions["Remove Duplicates (Keep Last)"](self.column_selection)
+            case 10:
+                self.functions["Remove duplicated rows"]()
+            case 11:
                 self.functions["Go back to orignal data"]()
-
+                
+                
         self.popup.destroy()  # close the popup when validated
         self.clear_table()
         self.display_data()
