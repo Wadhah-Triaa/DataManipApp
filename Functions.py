@@ -2,6 +2,7 @@ import pandas as pd
 import requests as rq
 from googletrans import Translator
 import asyncio
+from tkinter import messagebox
 
 def loadCSV(filePath):
     data=pd.read_csv(filePath)
@@ -31,6 +32,8 @@ def saveExcel(filePath,df):
 class DataF:
     def __init__(self,path,func):
             self.df=func(path)
+            self.df=self.df.convert_dtypes()
+            self.originalData=self.df.copy()
      
     def get_df(self):
         return self.df
@@ -43,7 +46,7 @@ class DataF:
 
     def replaceChars(self,col,removedChar,newChar=""):
         
-        self.df.iloc[:,col]=self.df.iloc[:,col].astype(str).str.replace(removedChar,newChar,regex=False)
+        self.df.iloc[:,col]=self.df.iloc[:,col].astype(str).str.replace(removedChar,newChar,case=False ,regex=False)
         return (self.df)
 
     def renameColumn(self,colNumber,newColName):
@@ -102,7 +105,8 @@ class DataF:
                 
 
         except ValueError:
-            print("Invalid date format. Please use YYYY-MM-DD.")
+            messagebox.showerror("Error", "Invalid date format. Please use YYYY-MM-DD.\n}")
+
 
     def dropColumn(self,colNumber):
         self.df=self.df.drop(self.df.columns[colNumber], axis=1)   
@@ -136,6 +140,7 @@ class DataF:
             self.df.sort_values(by=self.df.columns[colNumber], ascending=True, na_position='first', inplace=True)
         elif ( order=="Descending"):
             self.df.sort_values(by=self.df.columns[colNumber], ascending=False, na_position='first', inplace=True)
+      
 
     def showRows(self,border,number):
         if (border=="Top Rows"):
@@ -148,3 +153,23 @@ class DataF:
 
     def removeAllDuplicates(self):
         self.df.drop_duplicates(inplace=True)
+
+    def getOriginalData(self):
+        
+        self.df=self.originalData.copy()
+
+    def mergeColumns(self,colNumber1,ColNumber2,newColName):
+        self.df[newColName]=self.df.columns[colNumber1]+self.df.columns[ColNumber2]
+
+    def splitColumn(self,colNumber,newColName1,newColName2,separator):
+        dttype=self.df[self.df.columns[colNumber]].dtype
+        newColumns=self.df[self.df.columns[colNumber]].astype(str).str.split(pat=separator,expand=True)
+        newColumns = newColumns.iloc[:, :2] 
+        newColumns.columns = [newColName1, newColName2]
+        if dttype== "Float64":
+            dttype="Int64"
+        newColumns=newColumns.astype(dttype)
+        newColumns=newColumns.convert_dtypes()
+        self.df = pd.concat([self.df, newColumns], axis=1)
+
+

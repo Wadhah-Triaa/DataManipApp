@@ -1,8 +1,8 @@
-import GUI
-
+import tkinter as tk
+from WelcomeInterface import WelcomePage
 def main():
-    root = GUI.tk.Tk()
-    app = GUI.CSVViewer(root)
+    root = tk.Tk()
+    app = WelcomePage(root)
     root.mainloop()
 
 

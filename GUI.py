@@ -7,7 +7,7 @@ import asyncio
 
 
 
-class CSVViewer:
+class DataViewer:
     def __init__(self, root):
         self.root = root
         self.root.title("CSV File Viewer with Functions")
@@ -187,7 +187,9 @@ class CSVViewer:
             "Show Top/Bottom rows":self.dataTable.showRows,
             "Remove Duplicates (Keep Last)":self.dataTable.removeDuplicateByColumn,
             "Remove duplicated rows":self.dataTable.removeAllDuplicates,
-            "Go back to orignal data":self.dataTable.get_df
+            #"Merge 2 columns":self.dataTable.mergeColumns,
+            "Split a column":self.dataTable.splitColumn,
+            "Get orignal data":self.dataTable.getOriginalData
         }
         for func in self.functions.keys():
             self.functions_listbox.insert(tk.END, func)
@@ -215,10 +217,10 @@ class CSVViewer:
         # Insert DataFrame rows into Treeview
         for _, row in self.dataTable.iterrows():
             self.tree.insert("", "end", values=list(row))
-        self.status_var.set(self.status_var.get()+ f" With Row Count: {len(self.tree.get_children())} ")
+        self.status_var.set( f"Row Count: {len(self.tree.get_children())} ")
 
     def execute_function(self):
-        functions_requiring_column = {"Replace a Character","Rename a column","Filter by a number","Filter by string","Filter by Date","Translate column","Drop a column","Sort by order","Remove Duplicates (Keep Last)"} 
+        functions_requiring_column = {"Replace a Character","Rename a column","Filter by a number","Filter by string","Filter by Date","Translate column","Drop a column","Sort by order","Remove Duplicates (Keep Last)","Split a column"} 
         try:
             self.function_selection = self.functions_listbox.curselection()[0]
             selected_function_name = self.functions_listbox.get(self.function_selection)
@@ -416,11 +418,25 @@ class CSVViewer:
        
             case 9:
                 self.functions["Remove Duplicates (Keep Last)"](self.column_selection)
+            
             case 10:
                 self.functions["Remove duplicated rows"]()
             case 11:
-                self.functions["Go back to orignal data"]()
+                self.column1=tk.StringVar()
+                ttk.Label(self.popup, text="Column 1 name: ").grid(row=0, column=0, sticky=tk.W, padx=5, pady=5)
+                ttk.Entry(self.popup, textvariable=self.column1 ,width=30).grid(row=0, column=1, sticky=tk.W,padx=(0, 5) )
+                self.column2=tk.StringVar()
+                ttk.Label(self.popup, text="Column 2 name: ").grid(row=1, column=0, sticky=tk.W, padx=5, pady=5)
+                ttk.Entry(self.popup, textvariable=self.column2 ,width=30).grid(row=1, column=1, sticky=tk.W,padx=(0, 5) )
+                self.separator=tk.StringVar()
+                ttk.Label(self.popup, text="Enter separator: ").grid(row=2, column=0, sticky=tk.W, padx=5, pady=5)
+                ttk.Entry(self.popup, textvariable=self.separator ,width=30).grid(row=2, column=1, sticky=tk.W,padx=(0, 5) )
+                
+            case 12:
+                self.functions["Get orignal data"]()
    
+            
+
     def validate (self):
         match self.function_selection:
             case 0:
@@ -443,11 +459,18 @@ class CSVViewer:
                 self.functions["Show Top/Bottom rows"](self.combo.get(),int(self.value.get()))
             case 9:
                 self.functions["Remove Duplicates (Keep Last)"](self.column_selection)
+
             case 10:
                 self.functions["Remove duplicated rows"]()
             case 11:
-                self.functions["Go back to orignal data"]()
-                
+#For debug                print("Calling split with:", type(self.column1.get()), type(self.column1.get()), self.separator.get(),type(self.column_selection))
+
+                self.functions["Split a column"](self.column_selection,self.column1.get(),self.column2.get(),self.separator.get())
+            case 12:
+                self.functions["Get orignal data"]()
+
+        #"Merge 2 columns":self.dataTable.mergeColumns,
+            #"Split a column":self.dataTable.splitColumn,
                 
         self.popup.destroy()  # close the popup when validated
         self.clear_table()
