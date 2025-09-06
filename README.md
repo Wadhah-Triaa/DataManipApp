@@ -1,6 +1,6 @@
-# 🧰 Data ETL GUI App (Tkinter)
+# 🧰 Data TL GUI App (Tkinter)
 
-This is a GUI-based ETL (Extract, Transform, Load) application built with **Python** and **Tkinter**. It allows users to upload dataset files or input API URLs, view the data in a table, manipulate it using built-in tools, and export the cleaned data as CSV or Excel files.
+This is a GUI-based TL (Transform, Load) application built with **Python** and **Tkinter**. It allows users to upload dataset files or input API URLs, view the data in a table, manipulate it using built-in tools, and export the cleaned data as CSV or Excel files.
 
 ---
 
